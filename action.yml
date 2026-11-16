@@ -1,0 +1,144 @@
+name: Schemity Migration Check
+description: Reports what the SQL migrations in a pull request do to existing data and to the schema, without a database.
+author: Schemity
+branding:
+  icon: database
+  color: blue
+
+inputs:
+  dialect:
+    description: postgres, mysql, mariadb, sqlserver, sqlite, snowflake or cockroachdb.
+    required: true
+  migrations:
+    description: The folder that holds the SQL migration files.
+    required: true
+  command:
+    description: analyze (what the statements do), lint (design findings the change introduces) or check (both).
+    default: check
+  schema:
+    description: >-
+      A schema dump to start from (pg_dump --schema-only, structure.sql), for a
+      history that cannot be replayed from the first migration. With it, older
+      migrations are not replayed unless `before` says which.
+    default: ''
+  before:
+    description: >-
+      Older migrations that build the schema the change runs against, one path
+      per line. Defaults to the migrations folder, or to nothing when `schema`
+      is set.
+    default: ''
+  files:
+    description: >-
+      The migration files to check, one per line. Defaults to the files the
+      pull request adds or changes under the migrations folder.
+    default: ''
+  fail-on:
+    description: >-
+      Fail the job when the report holds any of these, separated by commas: any,
+      impact, lint, unread, loses-data, can-fail, storage-engine, rewrites-table,
+      holds-back, dependents, spreads, changes-data. Empty never fails.
+    default: ''
+  version:
+    description: The CLI release to use, such as v0.1.0. Defaults to the latest.
+    default: latest
+  token:
+    description: Used only to list the pull request's files.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download schemity
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        case "$RUNNER_OS-$RUNNER_ARCH" in
+          Linux-X64) asset=schemity-x86_64-unknown-linux-musl.tar.gz ;;
+          Linux-ARM64) asset=schemity-aarch64-unknown-linux-musl.tar.gz ;;
+          macOS-ARM64) asset=schemity-aarch64-apple-darwin.tar.gz ;;
+          macOS-X64) asset=schemity-x86_64-apple-darwin.tar.gz ;;
+          Windows-X64) asset=schemity-x86_64-pc-windows-msvc.zip ;;
+          *) echo "::error::No schemity build for $RUNNER_OS $RUNNER_ARCH"; exit 1 ;;
+        esac
+        if [ "$VERSION" = "latest" ]; then
+          base=https://github.com/schemity/ci/releases/latest/download
+        else
+          base="https://github.com/schemity/ci/releases/download/$VERSION"
+        fi
+        dir="$RUNNER_TEMP/schemity"
+        mkdir -p "$dir"
+        cd "$dir"
+        curl -fsSL --retry 3 -o "$asset" "$base/$asset"
+        curl -fsSL --retry 3 -o checksums.txt "$base/checksums.txt"
+        want=$(grep " $asset\$" checksums.txt | cut -d' ' -f1)
+        if command -v sha256sum >/dev/null; then
+          got=$(sha256sum "$asset" | cut -d' ' -f1)
+        else
+          got=$(shasum -a 256 "$asset" | cut -d' ' -f1)
+        fi
+        if [ -z "$want" ] || [ "$want" != "$got" ]; then
+          echo "::error::Checksum of $asset does not match checksums.txt"
+          exit 1
+        fi
+        case "$asset" in
+          *.zip) unzip -q -o "$asset" ;;
+          *) tar -xzf "$asset" ;;
+        esac
+        echo "$dir" >> "$GITHUB_PATH"
+
+    - name: Check migrations
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        DIALECT: ${{ inputs.dialect }}
+        MIGRATIONS: ${{ inputs.migrations }}
+        COMMAND: ${{ inputs.command }}
+        SCHEMA: ${{ inputs.schema }}
+        BEFORE: ${{ inputs.before }}
+        FILES: ${{ inputs.files }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        set -euo pipefail
+        folder="${MIGRATIONS%/}"
+        files=()
+        if [ -n "$FILES" ]; then
+          while IFS= read -r f; do [ -n "$f" ] && files+=("$f"); done <<< "$FILES"
+        elif [ -n "$PR_NUMBER" ]; then
+          # Asked of GitHub, so the checkout needs no history.
+          while IFS= read -r f; do
+            case "$f" in
+              "$folder"/*.sql|"$folder"/*.SQL) [ -f "$f" ] && files+=("$f") ;;
+            esac
+          done < <(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" \
+            --jq '.[] | select(.status != "removed") | .filename')
+        else
+          echo "::error::Not a pull request: set the 'files' input to the migration files to check."
+          exit 1
+        fi
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "No migration files changed under $folder."
+          exit 0
+        fi
+
+        args=("$COMMAND" --dialect "$DIALECT")
+        [ -n "$SCHEMA" ] && args+=(--schema "$SCHEMA")
+        if [ -n "$BEFORE" ]; then
+          while IFS= read -r b; do [ -n "$b" ] && args+=(--before "$b"); done <<< "$BEFORE"
+        elif [ -z "$SCHEMA" ]; then
+          args+=(--before "$folder")
+        fi
+
+        # The same report twice: readable in the job summary, and as notices
+        # on the changed lines. Only the second decides the job's result.
+        {
+          echo '### Schemity migration check'
+          echo
+          echo '```'
+          schemity "${args[@]}" "${files[@]}"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        [ -n "$FAIL_ON" ] && args+=(--fail-on "$FAIL_ON")
+        schemity "${args[@]}" --format github "${files[@]}"
