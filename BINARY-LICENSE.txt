@@ -1,0 +1,38 @@
+Schemity command line tool: binary license
+
+Copyright (c) 2026 Schemity. All rights reserved.
+
+This license covers the compiled "schemity" program published on the Releases
+page of https://github.com/schemity/ci (the "Software"). It does not cover the
+other files in that repository, which are under the MIT License in LICENSE.
+
+1. Use. You may download, install and run the Software, free of charge, for
+   any purpose, including commercial use, on any number of machines, and in
+   automated systems such as continuous integration.
+
+2. Copies. You may make copies of the Software for your own use and for use
+   inside your organization, and you may store unmodified copies in caches,
+   mirrors and container images that your own systems run from.
+
+3. Limits. You may not sell the Software, rent it, or offer it to others as a
+   paid product or service of its own. You may not modify, decompile,
+   disassemble or reverse engineer the Software, except where the law gives
+   you that right and it cannot be waived. You may not remove this license or
+   any notice from a copy.
+
+4. Third-party software. The Software contains open source components. Their
+   licenses are in THIRD_PARTY_LICENSES.txt inside each download, and nothing
+   here limits the rights those licenses give you.
+
+5. Ownership. The Software is licensed, not sold. Schemity keeps all rights
+   not granted here.
+
+6. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. THE
+   SOFTWARE REPORTS WHAT IT READS FROM YOUR FILES; IT IS NOT A GUARANTEE THAT
+   A MIGRATION IS SAFE TO RUN.
+
+7. Liability. IN NO EVENT SHALL SCHEMITY BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.

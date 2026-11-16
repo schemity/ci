@@ -107,6 +107,10 @@ schemity check --dialect postgres --before db/migrations db/migrations/0042_orde
 schemity --help
 ```
 
-The binary is free to use. Its source is not in this repo. The licences of
-the open source software it contains are in `THIRD_PARTY_LICENSES.txt` inside
-each download.
+## License
+
+The files in this repo (the Action and this README) are under the MIT License,
+see `LICENSE`. The `schemity` binary is free to use, including commercially
+and in CI, under `BINARY-LICENSE.txt`; its source is not in this repo. The
+licences of the open source software it contains are in
+`THIRD_PARTY_LICENSES.txt` inside each download.
