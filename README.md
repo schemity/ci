@@ -104,8 +104,13 @@ checks it against `checksums.txt`. The same binary runs anywhere:
 
 ```
 schemity check --dialect postgres --before db/migrations db/migrations/0042_orders.sql
+schemity lint --dialect postgres --schema db/structure.sql
+schemity rules --dialect postgres
 schemity --help
 ```
+
+`lint` with a schema and no files reports every design finding in that
+schema. `rules` lists the lint rules for a database.
 
 ## License
 
