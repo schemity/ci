@@ -58,9 +58,7 @@ runs:
           Linux-X64) asset=schemity-x86_64-unknown-linux-musl.tar.gz ;;
           Linux-ARM64) asset=schemity-aarch64-unknown-linux-musl.tar.gz ;;
           macOS-ARM64) asset=schemity-aarch64-apple-darwin.tar.gz ;;
-          macOS-X64) asset=schemity-x86_64-apple-darwin.tar.gz ;;
-          Windows-X64) asset=schemity-x86_64-pc-windows-msvc.zip ;;
-          *) echo "::error::No schemity build for $RUNNER_OS $RUNNER_ARCH"; exit 1 ;;
+          *) echo "::error::No schemity build for $RUNNER_OS $RUNNER_ARCH. Run this job on a Linux runner (ubuntu-latest)."; exit 1 ;;
         esac
         if [ "$VERSION" = "latest" ]; then
           base=https://github.com/schemity/ci/releases/latest/download
@@ -82,10 +80,7 @@ runs:
           echo "::error::Checksum of $asset does not match checksums.txt"
           exit 1
         fi
-        case "$asset" in
-          *.zip) unzip -q -o "$asset" ;;
-          *) tar -xzf "$asset" ;;
-        esac
+        tar -xzf "$asset"
         echo "$dir" >> "$GITHUB_PATH"
 
     - name: Check migrations
