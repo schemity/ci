@@ -41,8 +41,13 @@ inputs:
   version:
     description: The CLI release to use, such as v0.1.0. Defaults to the latest.
     default: latest
+  comment:
+    description: >-
+      true posts the report as one comment on the pull request, updated on
+      every push. Needs `pull-requests: write`.
+    default: 'false'
   token:
-    description: Used only to list the pull request's files.
+    description: Lists the pull request's files, and posts the comment when `comment` is true.
     default: ${{ github.token }}
 
 runs:
@@ -113,8 +118,10 @@ runs:
           echo "::error::Not a pull request: set the 'files' input to the migration files to check."
           exit 1
         fi
+        report="$RUNNER_TEMP/schemity/report.txt"
         if [ "${#files[@]}" -eq 0 ]; then
-          echo "No migration files changed under $folder."
+          echo "No migration files changed under $folder." | tee "$report"
+          touch "$RUNNER_TEMP/schemity/no-files"
           exit 0
         fi
 
@@ -126,14 +133,60 @@ runs:
           args+=(--before "$folder")
         fi
 
-        # The same report twice: readable in the job summary, and as notices
-        # on the changed lines. Only the second decides the job's result.
+        # The same report twice: readable in the job summary (and the pull
+        # request comment), and as notices on the changed lines. Only the
+        # second decides the job's result.
+        schemity "${args[@]}" "${files[@]}" > "$report"
         {
           echo '### Schemity migration check'
           echo
           echo '```'
-          schemity "${args[@]}" "${files[@]}"
+          cat "$report"
           echo '```'
         } >> "$GITHUB_STEP_SUMMARY"
         [ -n "$FAIL_ON" ] && args+=(--fail-on "$FAIL_ON")
         schemity "${args[@]}" --format github "${files[@]}"
+
+    # Runs when the check failed the job too: a failing report is the one most
+    # worth reading on the pull request.
+    - name: Comment on the pull request
+      if: ${{ !cancelled() && inputs.comment == 'true' && github.event.pull_request.number }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        set -euo pipefail
+        report="$RUNNER_TEMP/schemity/report.txt"
+        # The check stopped before it had a report (an unreadable input).
+        [ -f "$report" ] || exit 0
+        marker='<!-- schemity-migration-check -->'
+        existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+          --jq ".[] | select(.body | startswith(\"$marker\")) | .id")
+        existing="${existing%%$'\n'*}"
+        # No migrations in this pull request: say so only where an earlier
+        # push left a report that no longer applies.
+        if [ -f "$RUNNER_TEMP/schemity/no-files" ] && [ -z "$existing" ]; then
+          exit 0
+        fi
+        body="$RUNNER_TEMP/schemity/comment.md"
+        {
+          echo "$marker"
+          echo '### Schemity migration check'
+          echo
+          echo '```'
+          # A comment holds 65,536 characters; the job summary keeps the rest.
+          head -c 60000 "$report"
+          [ "$(wc -c < "$report")" -gt 60000 ] && printf '\n[cut short: the full report is in the job summary]\n'
+          echo '```'
+          echo
+          echo "Checked from the migration files alone, with no database. Row counts, table sizes and the views in the way come from a live connection in [Schemity](https://schemity.com/schema-migration-impact-analysis/). Run by [schemity/ci](https://github.com/schemity/ci)."
+        } > "$body"
+        if [ -n "$existing" ]; then
+          request=(-X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing")
+        else
+          request=(-X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments")
+        fi
+        if ! gh api "${request[@]}" -F "body=@$body" > /dev/null; then
+          echo "::warning::Could not comment on the pull request. A pull request from a fork gets a read-only token, and otherwise the job needs 'pull-requests: write'. The report is in the job summary."
+        fi

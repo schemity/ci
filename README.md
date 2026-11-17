@@ -37,6 +37,32 @@ jobs:
 Findings appear as notices on the changed lines and as a report in the job
 summary. The job passes whatever the report says, unless you set `fail-on`.
 
+### A comment on the pull request
+
+Set `comment: true` to post the report as one comment on the pull request,
+updated on every push rather than added again. It needs write access to
+pull requests:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: schemity/ci@v1
+        with:
+          dialect: postgres
+          migrations: db/migrations
+          comment: true
+```
+
+A pull request from a fork gets a read-only token, so there the comment is
+skipped with a warning and the report stays in the job summary.
+
 ## Inputs
 
 | Input | Default | |
@@ -48,6 +74,7 @@ summary. The job passes whatever the report says, unless you set `fail-on`.
 | `before` | the migrations folder | Older migrations to replay, one path per line |
 | `files` | the pull request's files | The migration files to check, one per line |
 | `fail-on` | | What fails the job, see below |
+| `comment` | `false` | `true` posts the report as a pull request comment, see above |
 | `version` | `latest` | The CLI release, such as `v0.1.0` |
 
 ### Failing the job
