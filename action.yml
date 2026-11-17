@@ -172,6 +172,21 @@ runs:
         if [ -f "$RUNNER_TEMP/schemity/no-files" ] && [ -z "$existing" ]; then
           exit 0
         fi
+        # What the files cannot say about this report's findings, asked of
+        # the one place that can answer it: the database.
+        asks=()
+        grep -qx 'Loses data' "$report" && asks+=("how many rows lose data")
+        grep -qx 'Can fail on existing data' "$report" && asks+=("how many rows would make it fail")
+        grep -qxE 'Rewrites the table|Holds back other statements' "$report" && asks+=("how big the tables it rewrites or locks are, which decides seconds or minutes")
+        link='https://schemity.com/schema-migration-impact-analysis/?utm_source=github&utm_medium=pr-comment&utm_campaign=migration-check'
+        footer="Checked from the migration files alone, with no database."
+        case ${#asks[@]} in
+          0) footer+=" Row counts, table sizes and the views in the way come from a live connection in [Schemity]($link)." ;;
+          1) footer+=" Open this migration in [Schemity]($link) against staging or production to see ${asks[0]}." ;;
+          2) footer+=" Open this migration in [Schemity]($link) against staging or production to see ${asks[0]} and ${asks[1]}." ;;
+          *) footer+=" Open this migration in [Schemity]($link) against staging or production to see ${asks[0]}, ${asks[1]}, and ${asks[2]}." ;;
+        esac
+        footer+=" Run by [schemity/ci](https://github.com/schemity/ci)."
         body="$RUNNER_TEMP/schemity/comment.md"
         {
           echo "$marker"
@@ -183,7 +198,7 @@ runs:
           [ "$(wc -c < "$report")" -gt 60000 ] && printf '\n[cut short: the full report is in the job summary]\n'
           echo '```'
           echo
-          echo "Checked from the migration files alone, with no database. Row counts, table sizes and the views in the way come from a live connection in [Schemity](https://schemity.com/schema-migration-impact-analysis/). Run by [schemity/ci](https://github.com/schemity/ci)."
+          echo "$footer"
         } > "$body"
         if [ -n "$existing" ]; then
           request=(-X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing")
