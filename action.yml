@@ -110,6 +110,9 @@ runs:
           # Asked of GitHub, so the checkout needs no history.
           while IFS= read -r f; do
             case "$f" in
+              # A down file reverses a migration (golang-migrate, sqlx,
+              # Diesel, a Flyway undo); it is not one that will run.
+              */down.sql|*.down.sql|*.DOWN.SQL|*/U[0-9]*__*.sql) ;;
               "$folder"/*.sql|"$folder"/*.SQL) [ -f "$f" ] && files+=("$f") ;;
             esac
           done < <(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" \

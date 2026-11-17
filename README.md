@@ -116,13 +116,17 @@ With `schema` set and no `before`, only the dump is read.
 ## Which migrations work
 
 Plain SQL files, read in name order: Prisma, Drizzle, Flyway, Liquibase's SQL
-format, golang-migrate, goose, dbmate, sqlx, Supabase. For Django and Laravel,
-print the SQL first (`manage.py sqlmigrate`, `artisan migrate --pretend`) and
-pass the result as `files`.
+format, golang-migrate, goose, dbmate, sqlx, Supabase. Only the up half of a
+goose or dbmate file is read, and down files (`.down.sql`, Diesel's
+`down.sql`, a Flyway `U` undo) are skipped. For Django and Laravel, print the
+SQL first (`manage.py sqlmigrate`, `artisan migrate --pretend`, both of which
+need a database connection of their own) and pass the result as `files`.
 
 A statement that cannot be read is listed under "Not analysed", never passed
-over in silence. Row counts and views are not known here: there is no
-database. The Schemity desktop app reports those against a live connection.
+over in silence. Row counts and table sizes are not known here: there is no
+database. Views are not read from migrations yet: a `CREATE VIEW` is listed as
+not read. The Schemity desktop app reports all three against a live
+connection.
 
 ## The command line tool
 
