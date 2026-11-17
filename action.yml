@@ -181,7 +181,7 @@ runs:
         link='https://schemity.com/schema-migration-impact-analysis/?utm_source=github&utm_medium=pr-comment&utm_campaign=migration-check'
         footer="Checked from the migration files alone, with no database."
         case ${#asks[@]} in
-          0) footer+=" Row counts, table sizes and the views in the way come from a live connection in [Schemity]($link)." ;;
+          0) footer+=" Row counts and table sizes come from a live connection in [Schemity]($link)." ;;
           1) footer+=" Open this migration in [Schemity]($link) against staging or production to see ${asks[0]}." ;;
           2) footer+=" Open this migration in [Schemity]($link) against staging or production to see ${asks[0]} and ${asks[1]}." ;;
           *) footer+=" Open this migration in [Schemity]($link) against staging or production to see ${asks[0]}, ${asks[1]}, and ${asks[2]}." ;;

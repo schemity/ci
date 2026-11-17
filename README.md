@@ -124,8 +124,9 @@ need a database connection of their own) and pass the result as `files`.
 
 A statement that cannot be read is listed under "Not analysed", never passed
 over in silence. Row counts and table sizes are not known here: there is no
-database. Views are not read from migrations yet: a `CREATE VIEW` is listed as
-not read. The Schemity desktop app reports all three against a live
+database. Views are read from the `CREATE VIEW` statements in the migrations,
+so a type change a PostgreSQL view blocks is reported; a view created by hand
+outside them is not. The Schemity desktop app reports all three against a live
 connection.
 
 ## The command line tool
